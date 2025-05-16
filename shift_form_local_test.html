@@ -174,13 +174,11 @@
                 if (method === 'POST') {
                     console.log('Payload for POST:', JSON.stringify(payload));
                 }
-                // ★★★ ここまで ★★★
+                if (GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL' || !GAS_WEB_APP_URL) {
+                    alert('GAS_WEB_APP_URLが設定されていません。HTMLファイル内の該当箇所を修正してください。');
+                    throw new Error('GAS_WEB_APP_URL is not set.');
+                }
 
-                    // 修正案 (よりシンプルに)
-                    if (GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL_HERE' || !GAS_WEB_APP_URL) {
-                        console.warn('GAS_WEB_APP_URL is not set. Simulating GAS response for preview.');
-                        // ... (シミュレーション処理) ...
-                    }
                     if (action === 'getAdminSettings') {
                         hideLoading();
                         return Promise.resolve({ status: 'success', data: {} });
