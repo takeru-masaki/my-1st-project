@@ -17,7 +17,10 @@
         .event-slot.selected { background-color: #2563eb !important; color: white !important; }
         .saturday { color: #3b82f6; }
         .sunday { color: #ef4444; }
-        .month-display { text-align: center; font-size: 1.5rem; font-weight: 600; color: #1e40af; padding: 1rem 0; background-color: #e0f2fe; border-bottom: 1px solid #93c5fd; }
+        .month-display-container { display: flex; align-items: center; justify-content: center; background-color: #e0f2fe; border-bottom: 1px solid #93c5fd; padding: 0.5rem 0; }
+        .month-nav-button { background-color: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; margin: 0 1rem; border-radius: 0.375rem; cursor: pointer; font-weight: 500; }
+        .month-nav-button:hover { background-color: #2563eb; }
+        .month-display { text-align: center; font-size: 1.5rem; font-weight: 600; color: #1e40af; padding: 0.5rem 0; min-width: 150px; /* 幅を確保 */ }
         .admin-section { background-color: #f3f4f6; border: 2px dashed #d1d5db; border-radius: 0.5rem; }
         /* ローディングスピナー */
         .loader {
@@ -38,7 +41,7 @@
         .hidden { display: none; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-    </head>
+</head>
 <body class="bg-gray-100 p-2 md:p-4" style="font-family: 'Noto Sans JP', sans-serif;">
     <div class="container mx-auto max-w-5xl bg-white shadow-xl rounded-xl overflow-hidden">
         <header class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 text-center rounded-t-xl">
@@ -81,7 +84,11 @@
             <p class="text-xs text-gray-500 mt-2">※設定はGoogleスプレッドシートに保存されます。</p>
         </section>
 
-        <div id="monthDisplay" class="month-display"></div>
+        <div class="month-display-container">
+            <button id="prevMonthButton" class="month-nav-button">&lt; 前月</button>
+            <div id="monthDisplay" class="month-display"></div>
+            <button id="nextMonthButton" class="month-nav-button">次月 &gt;</button>
+        </div>
 
         <div class="p-4 md:p-6">
             <p class="text-gray-700 mb-2 text-sm md:text-base">講師情報と勤務可能なコマをタップしてください。</p>
@@ -132,7 +139,7 @@
         // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
         // ★ GASのウェブアプリURLをここに設定してください ★
         // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzf00GR1c0TwKdZl4baSLWHjuvOugDGd5c9ZNzLvnpdXoMa3FmQlkLsZGyDXn2ipigr/exec'; // 必ず実際のURLに置き換えてください
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzf00GR1c0TwKdZl4baSLWHjuvOugDGd5c9ZNzLvnpdXoMa3FmQlkLsZGyDXn2ipigr/exec'; // ユーザーの実際のURLに置き換え済み
         // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -151,9 +158,13 @@
             const applyEventButton = document.getElementById('applyEventButton');
             const refreshAdminSettingsButton = document.getElementById('refreshAdminSettingsButton');
 
+            // 月ナビゲーションボタンの取得
+            const prevMonthButton = document.getElementById('prevMonthButton');
+            const nextMonthButton = document.getElementById('nextMonthButton');
+
             const today = new Date();
             let currentYear = today.getFullYear();
-            let currentMonth = today.getMonth();
+            let currentMonth = today.getMonth(); // 0-indexed (0 = January, 11 = December)
             let classroomEvents = {}; 
 
             function showLoading(message = "処理中...") {
@@ -166,18 +177,55 @@
                 loadingSpinner.classList.add('hidden');
                 loadingStatus.classList.add('hidden');
             }
+            
+            // 月を変更する関数
+            async function changeMonth(monthOffset) {
+                currentMonth += monthOffset;
+                if (currentMonth < 0) {
+                    currentMonth = 11;
+                    currentYear--;
+                } else if (currentMonth > 11) {
+                    currentMonth = 0;
+                    currentYear++;
+                }
+                // URLパラメータを更新 (任意、ページリロード時に状態を保持したい場合)
+                // const newUrl = `${window.location.pathname}?month=${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+                // window.history.pushState({path:newUrl},'',newUrl);
+
+                // 新しい月のデータを読み込み、テーブルを再描画
+                await loadAdminSettings();
+                // 教室長設定の日付入力も更新
+                const firstDayOfNewMonth = new Date(currentYear, currentMonth, 1);
+                eventDateInput.value = firstDayOfNewMonth.toISOString().split('T')[0];
+            }
+
+            // 前月ボタンのイベントリスナー
+            prevMonthButton.addEventListener('click', function() {
+                changeMonth(-1);
+            });
+
+            // 次月ボタンのイベントリスナー
+            nextMonthButton.addEventListener('click', function() {
+                changeMonth(1);
+            });
+
 
             async function fetchFromGAS(action, payload = {}, method = 'GET') {
-                // ★★★ デバッグログ追加 ★★★
                 console.log(`fetchFromGAS called. Action: ${action}, Method: ${method}, URL: ${GAS_WEB_APP_URL}`);
                 if (method === 'POST') {
                     console.log('Payload for POST:', JSON.stringify(payload));
                 }
-                // ★★★ ここまで ★★★
 
-                if (GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL' || !GAS_WEB_APP_URL) {
-                    alert('GAS_WEB_APP_URLが設定されていません。HTMLファイル内の該当箇所を修正してください。');
-                    throw new Error('GAS_WEB_APP_URL is not set.');
+                if (GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL_HERE' || !GAS_WEB_APP_URL ) {
+                    console.warn('GAS_WEB_APP_URL is a placeholder or not set. Simulating GAS response for preview.');
+                     if (action === 'getAdminSettings') {
+                        hideLoading();
+                        return Promise.resolve({ status: 'success', data: {} });
+                    }
+                    if (action === 'submitShift' || action === 'saveAdminSettings') {
+                        hideLoading();
+                        return Promise.resolve({ status: 'success', message: 'データはプレビューモードのため送信されませんが、処理はシミュレートされました。' });
+                    }
                 }
 
                 showLoading(method === 'POST' ? 'データを送信中...' : 'データを読込中...');
@@ -192,32 +240,42 @@
                     if (method === 'GET') {
                         const params = new URLSearchParams(payload);
                         params.append('action', action);
+                        // ★★★ 月の情報をパラメータに追加 ★★★
+                        params.append('year', currentYear);
+                        params.append('month', currentMonth + 1); // GAS側は1-indexedで月を期待する場合
                         url += '?' + params.toString();
-                        console.log('GET request to:', url); // ★★★ デバッグログ追加 ★★★
+                        console.log('GET request to:', url);
                     } else if (method === 'POST') {
                         payload.action = action; 
-                        options.body = JSON.stringify(payload);
+                        options.body = JSON.stringify(payload); 
                         options.headers = {
-                            'Content-Type': 'application/json',
+                            'Content-Type': 'text/plain;charset=UTF-8',
                         };
-                        console.log('POST request to:', url, 'with options:', options); // ★★★ デバッグログ追加 ★★★
+                        console.log('POST request to:', url, 'with options:', options);
                     }
                     
                     const response = await fetch(url, options);
-                    console.log('Fetch response status:', response.status); // ★★★ デバッグログ追加 ★★★
+                    console.log('Fetch response status:', response.status, 'Status text:', response.statusText);
                     if (!response.ok) {
                         const errorText = await response.text();
-                        console.error('Fetch response error text:', errorText); // ★★★ デバッグログ追加 ★★★
+                        console.error('Fetch response error text:', errorText); 
                         throw new Error(`GASへのリクエストに失敗しました。Status: ${response.status}, Message: ${errorText}`);
                     }
-                    const result = await response.json();
-                    console.log('Fetch result from GAS:', result); // ★★★ デバッグログ追加 ★★★
-                    if (result.status === 'error') {
-                        throw new Error(`GASエラー: ${result.message}`);
+                    const responseText = await response.text();
+                    console.log('Raw response text from GAS:', responseText);
+                    try {
+                        const result = JSON.parse(responseText);
+                        console.log('Fetch result from GAS (parsed JSON):', result); 
+                        if (result.status === 'error') {
+                            throw new Error(`GASエラー: ${result.message}`);
+                        }
+                        return result;
+                    } catch (e) {
+                        console.error("Failed to parse GAS response as JSON:", e);
+                        throw new Error("GASからの応答がJSON形式ではありません: " + responseText);
                     }
-                    return result;
                 } catch (error) {
-                    console.error('GAS通信エラー (fetchFromGAS catch block):', error); // ★★★ デバッグログ変更 ★★★
+                    console.error('GAS通信エラー (fetchFromGAS catch block):', error); 
                     alert(`エラーが発生しました: ${error.message}`);
                     throw error; 
                 } finally {
@@ -227,12 +285,13 @@
 
             async function loadAdminSettings() {
                 try {
-                    const result = await fetchFromGAS('getAdminSettings', {}, 'GET');
+                    // getAdminSettings に現在の年と月を渡す (GAS側で対応が必要な場合)
+                    const result = await fetchFromGAS('getAdminSettings', { year: currentYear, month: currentMonth + 1 }, 'GET');
                     classroomEvents = result.data || {};
                     populateShiftTable(); 
-                    console.log("教室長設定を読み込みました:", classroomEvents);
+                    console.log(`教室長設定を読み込みました (${currentYear}年${currentMonth + 1}月):`, classroomEvents);
                 } catch (error) {
-                    console.error("loadAdminSettings でエラー:", error); // ★★★ デバッグログ追加 ★★★
+                    console.error("loadAdminSettings でエラー:", error); 
                     classroomEvents = {}; 
                     populateShiftTable(); 
                 }
@@ -256,6 +315,7 @@
 
             function populateShiftTable() {
                 tableBody.innerHTML = '';
+                // 月表示を更新
                 monthDisplay.textContent = `${currentYear}年 ${currentMonth + 1}月`;
                 currentYearSpan.textContent = currentYear;
                 const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -298,7 +358,7 @@
                         let originalText = "";
                         if (eventInfo) {
                             cell.dataset.eventType = eventInfo.type;
-                            cell.dataset.eventDescription = eventInfo.description || ''; // ★★★ データ属性に詳細を保存 ★★★
+                            cell.dataset.eventDescription = eventInfo.description || ''; 
                             originalText = eventInfo.description ? `${eventInfo.type}(${eventInfo.description})` : eventInfo.type;
                             cell.innerHTML = `<span class="text-xs">${originalText}</span>`;
                             if (eventInfo.type === '休講') {
@@ -328,22 +388,16 @@
             }
 
             applyEventButton.addEventListener('click', async function() {
-                // ★★★ デバッグログ追加 ★★★
                 console.log('「設定を反映/保存」ボタンがクリックされました。');
-                // ★★★ ここまで ★★★
-
                 const dateVal = eventDateInput.value; 
                 const timeSlotVal = eventTimeSlotSelect.value;
                 const typeVal = eventTypeSelect.value;
                 const descriptionVal = eventDescriptionInput.value;
-
-                // ★★★ デバッグログ追加 ★★★
                 console.log('取得した値:', { dateVal, timeSlotVal, typeVal, descriptionVal });
-                // ★★★ ここまで ★★★
 
                 if (!dateVal || !timeSlotVal) {
                     alert('日付と時間枠を選択してください。');
-                    console.log('日付または時間枠が未選択のため処理を中断。'); // ★★★ デバッグログ追加 ★★★
+                    console.log('日付または時間枠が未選択のため処理を中断。');
                     return;
                 }
                 
@@ -352,7 +406,7 @@
                 const settingIdBase = `${dateKey}_`;
 
                 if (typeVal === 'クリア') {
-                    console.log('イベントタイプ: クリア'); // ★★★ デバッグログ追加 ★★★
+                    console.log('イベントタイプ: クリア');
                     if (timeSlotVal === '全日') {
                         for (let i = 1; i <= 8; i++) delete updatedEventsForGAS[`${settingIdBase}${i}限`];
                         delete updatedEventsForGAS[`${settingIdBase}全日`];
@@ -360,7 +414,7 @@
                         delete updatedEventsForGAS[`${settingIdBase}${timeSlotVal}`];
                     }
                 } else {
-                    console.log('イベントタイプ:', typeVal); // ★★★ デバッグログ追加 ★★★
+                    console.log('イベントタイプ:', typeVal); 
                     if (timeSlotVal === '全日') {
                         for (let i = 1; i <= 8; i++) delete updatedEventsForGAS[`${settingIdBase}${i}限`];
                         updatedEventsForGAS[`${settingIdBase}全日`] = { type: typeVal, description: descriptionVal };
@@ -370,20 +424,17 @@
                     }
                 }
                 
-                // ★★★ デバッグログ追加 ★★★
                 console.log('GASに送信する教室長設定 (updatedEventsForGAS):', JSON.stringify(updatedEventsForGAS));
-                // ★★★ ここまで ★★★
-
                 try {
                     classroomEvents = updatedEventsForGAS; 
-                    populateShiftTable(); 
+                    // populateShiftTable(); // 保存前に再描画すると、GAS保存失敗時にローカルの変更が残ってしまう。保存成功後に再描画する方が良い。
 
-                    const result = await fetchFromGAS('saveAdminSettings', { events: classroomEvents }, 'POST');
+                    const result = await fetchFromGAS('saveAdminSettings', { events: classroomEvents, year: currentYear, month: currentMonth + 1 }, 'POST'); // 年月情報も送信
                     alert(result.message || '教室長設定をスプレッドシートに保存しました。');
+                    await loadAdminSettings(); // 保存成功後に最新情報を再読み込み＆再描画
                 } catch (error) {
-                    console.error("applyEventButtonクリック処理でのエラー:", error); // ★★★ デバッグログ追加 ★★★
-                    alert('設定の保存に失敗しました。コンソールで詳細を確認してください。'); // メッセージ変更
-                    await loadAdminSettings(); 
+                    console.error("applyEventButtonクリック処理でのエラー:", error); 
+                    await loadAdminSettings(); // エラー時もサーバーから再読み込みして整合性を保つ
                 }
             });
             
@@ -396,7 +447,7 @@
 
             const submitShiftButton = document.getElementById('submitShiftButton');
             submitShiftButton.addEventListener('click', async function handleSubmit() {
-                console.log('「この内容で提出する」ボタンがクリックされました。'); // ★★★ デバッグログ追加 ★★★
+                console.log('「この内容で提出する」ボタンがクリックされました。');
                 const instructorName = instructorNameInput.value;
                 const subjectTypeElement = document.querySelector('input[name="subjectType"]:checked');
                 const subjectType = subjectTypeElement ? subjectTypeElement.value : "";
@@ -412,9 +463,8 @@
                     
                     const dateKey = cell.dataset.date; 
                     const timeSlotKey = cell.dataset.timeSlot; 
-                    
                     let slotType = '通常'; 
-                    let slotDescription = cell.dataset.eventDescription || ''; // ★★★ データ属性から取得 ★★★
+                    let slotDescription = cell.dataset.eventDescription || '';
 
                     if (cell.classList.contains('event-slot') && cell.dataset.eventType) {
                         slotType = cell.dataset.eventType;
@@ -430,7 +480,7 @@
                     });
                 });
                 
-                console.log('提出データ (shiftsData):', JSON.stringify(shiftsData)); // ★★★ デバッグログ追加 ★★★
+                console.log('提出データ (shiftsData):', JSON.stringify(shiftsData));
 
                 const dataToSubmit = {
                     year: currentYear, 
@@ -440,7 +490,7 @@
                     remarks: remarks,
                     shifts: shiftsData, 
                 };
-                console.log('最終提出データ (dataToSubmit):', JSON.stringify(dataToSubmit)); // ★★★ デバッグログ追加 ★★★
+                console.log('最終提出データ (dataToSubmit):', JSON.stringify(dataToSubmit));
 
                 try {
                     const result = await fetchFromGAS('submitShift', dataToSubmit, 'POST');
@@ -450,30 +500,31 @@
                     document.querySelector('input[name="subjectType"][value="共通"]').checked = true; 
                     await loadAdminSettings(); 
                 } catch (error) {
-                    console.error("handleSubmit でのエラー:", error); // ★★★ デバッグログ追加 ★★★
+                    console.error("handleSubmit でのエラー:", error); 
                 }
             });
 
             async function initialize() {
-                console.log('Initializing application...'); // ★★★ デバッグログ追加 ★★★
+                console.log('Initializing application...'); 
                 const urlParams = new URLSearchParams(window.location.search);
-                const monthParam = urlParams.get('month'); 
+                const monthParam = urlParams.get('month'); // yyyy-MM
                 if (monthParam) {
                     const parts = monthParam.split('-');
                     if (parts.length === 2) {
                         const year = parseInt(parts[0]);
-                        const month = parseInt(parts[1]) - 1; 
+                        const month = parseInt(parts[1]) - 1; // 0-indexed
                         if (!isNaN(year) && !isNaN(month) && month >= 0 && month <= 11) {
                             currentYear = year;
                             currentMonth = month;
                         }
                     }
                 }
-                const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
-                eventDateInput.value = firstDayOfMonth.toISOString().split('T')[0]; 
+                // 教室長設定の日付入力の初期値を設定
+                const firstDayOfCurrentMonth = new Date(currentYear, currentMonth, 1);
+                eventDateInput.value = firstDayOfCurrentMonth.toISOString().split('T')[0];
                 
-                await loadAdminSettings(); 
-                console.log('Initialization complete.'); // ★★★ デバッグログ追加 ★★★
+                await loadAdminSettings(); // 教室長設定を読み込み、テーブルを初期描画
+                console.log('Initialization complete.'); 
             }
             initialize();
         });
