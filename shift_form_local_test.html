@@ -38,8 +38,7 @@
         .hidden { display: none; }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-    <link href="https://script.google.com/macros/s/AKfycbzf00GR1c0TwKdZl4baSLWHjuvOugDGd5c9ZNzLvnpdXoMa3FmQlkLsZGyDXn2ipigr/exec" rel="stylesheet">
-</head>
+    </head>
 <body class="bg-gray-100 p-2 md:p-4" style="font-family: 'Noto Sans JP', sans-serif;">
     <div class="container mx-auto max-w-5xl bg-white shadow-xl rounded-xl overflow-hidden">
         <header class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 text-center rounded-t-xl">
@@ -174,19 +173,11 @@
                 if (method === 'POST') {
                     console.log('Payload for POST:', JSON.stringify(payload));
                 }
+                // ★★★ ここまで ★★★
+
                 if (GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL' || !GAS_WEB_APP_URL) {
                     alert('GAS_WEB_APP_URLが設定されていません。HTMLファイル内の該当箇所を修正してください。');
                     throw new Error('GAS_WEB_APP_URL is not set.');
-                }
-
-                    if (action === 'getAdminSettings') {
-                        hideLoading();
-                        return Promise.resolve({ status: 'success', data: {} });
-                    }
-                    if (action === 'submitShift' || action === 'saveAdminSettings') {
-                        hideLoading();
-                        return Promise.resolve({ status: 'success', message: 'データはプレビューモードのため送信されませんが、処理はシミュレートされました。' });
-                    }
                 }
 
                 showLoading(method === 'POST' ? 'データを送信中...' : 'データを読込中...');
