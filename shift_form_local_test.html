@@ -525,29 +525,3 @@
     </script>
 </body>
 </html>
-```
-
-**主な修正点:**
-
-* **`formatDateKeyForStorage(dateObj)` 関数の微調整:**
-    * 引数 `dateObj` が確実に `Date` インスタンスであることを確認するチェックを追加しました（主に安全のため）。
-* **`initialize()` 関数内の修正:**
-    * `eventDateInput.value` を設定する際に、`toISOString().split('T')[0]` の代わりに `formatDateKeyForStorage(firstDayOfCurrentMonth)` を使用するように変更しました。
-        ```javascript
-        // 修正前:
-        // eventDateInput.value = firstDayOfCurrentMonth.toISOString().split('T')[0];
-        // 修正後:
-        eventDateInput.value = formatDateKeyForStorage(firstDayOfCurrentMonth);
-        ```
-* **`changeMonth(monthOffset)` 関数内の修正:**
-    * 同様に、`eventDateInput.value` を設定する際に `formatDateKeyForStorage(firstDayOfNewMonth)` を使用するように変更しました。
-        ```javascript
-        // 修正前:
-        // eventDateInput.value = firstDayOfNewMonth.toISOString().split('T')[0];
-        // 修正後:
-        eventDateInput.value = formatDateKeyForStorage(firstDayOfNewMonth);
-        ```
-
-これにより、教室長設定パネルの日付入力欄には、現在選択されている月の1日が、タイムゾーンの影響を受けずに正しく `YYYY-MM-DD` 形式で設定されるようになります。
-
-ご確認のほど、よろしくお願いいたし
