@@ -158,13 +158,12 @@
             const applyEventButton = document.getElementById('applyEventButton');
             const refreshAdminSettingsButton = document.getElementById('refreshAdminSettingsButton');
 
-            // 月ナビゲーションボタンの取得
             const prevMonthButton = document.getElementById('prevMonthButton');
             const nextMonthButton = document.getElementById('nextMonthButton');
 
             const today = new Date();
             let currentYear = today.getFullYear();
-            let currentMonth = today.getMonth(); // 0-indexed (0 = January, 11 = December)
+            let currentMonth = today.getMonth(); 
             let classroomEvents = {}; 
 
             function showLoading(message = "処理中...") {
@@ -178,7 +177,23 @@
                 loadingStatus.classList.add('hidden');
             }
             
-            // 月を変更する関数
+            function formatDateKeyForStorage(dateObj) { 
+                // dateObj が Date インスタンスであることを確認
+                if (!(dateObj instanceof Date)) {
+                    console.error("formatDateKeyForStorage: input is not a Date object", dateObj);
+                    // 安全のため、今日の日付を返すか、エラーを投げる
+                    const d = new Date();
+                    const year = d.getFullYear();
+                    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+                    const dayVal = d.getDate().toString().padStart(2, '0');
+                    return `${year}-${month}-${dayVal}`;
+                }
+                const year = dateObj.getFullYear();
+                const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+                const dayVal = dateObj.getDate().toString().padStart(2, '0');
+                return `${year}-${month}-${dayVal}`;
+            }
+
             async function changeMonth(monthOffset) {
                 currentMonth += monthOffset;
                 if (currentMonth < 0) {
@@ -188,27 +203,19 @@
                     currentMonth = 0;
                     currentYear++;
                 }
-                // URLパラメータを更新 (任意、ページリロード時に状態を保持したい場合)
-                // const newUrl = `${window.location.pathname}?month=${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-                // window.history.pushState({path:newUrl},'',newUrl);
-
-                // 新しい月のデータを読み込み、テーブルを再描画
                 await loadAdminSettings();
-                // 教室長設定の日付入力も更新
                 const firstDayOfNewMonth = new Date(currentYear, currentMonth, 1);
-                eventDateInput.value = firstDayOfNewMonth.toISOString().split('T')[0];
+                // ★★★ 修正点: formatDateKeyForStorage を使用 ★★★
+                eventDateInput.value = formatDateKeyForStorage(firstDayOfNewMonth);
             }
 
-            // 前月ボタンのイベントリスナー
             prevMonthButton.addEventListener('click', function() {
                 changeMonth(-1);
             });
 
-            // 次月ボタンのイベントリスナー
             nextMonthButton.addEventListener('click', function() {
                 changeMonth(1);
             });
-
 
             async function fetchFromGAS(action, payload = {}, method = 'GET') {
                 console.log(`fetchFromGAS called. Action: ${action}, Method: ${method}, URL: ${GAS_WEB_APP_URL}`);
@@ -240,9 +247,8 @@
                     if (method === 'GET') {
                         const params = new URLSearchParams(payload);
                         params.append('action', action);
-                        // ★★★ 月の情報をパラメータに追加 ★★★
                         params.append('year', currentYear);
-                        params.append('month', currentMonth + 1); // GAS側は1-indexedで月を期待する場合
+                        params.append('month', currentMonth + 1); 
                         url += '?' + params.toString();
                         console.log('GET request to:', url);
                     } else if (method === 'POST') {
@@ -285,7 +291,6 @@
 
             async function loadAdminSettings() {
                 try {
-                    // getAdminSettings に現在の年と月を渡す (GAS側で対応が必要な場合)
                     const result = await fetchFromGAS('getAdminSettings', { year: currentYear, month: currentMonth + 1 }, 'GET');
                     classroomEvents = result.data || {};
                     populateShiftTable(); 
@@ -297,14 +302,6 @@
                 }
             }
             
-            function formatDateKeyForStorage(date) { 
-                const d = new Date(date);
-                const year = d.getFullYear();
-                const month = (d.getMonth() + 1).toString().padStart(2, '0');
-                const dayVal = d.getDate().toString().padStart(2, '0');
-                return `${year}-${month}-${dayVal}`;
-            }
-
             function formatDateForDisplay(date) { 
                 const d = new Date(date);
                 const month = d.getMonth() + 1;
@@ -315,7 +312,6 @@
 
             function populateShiftTable() {
                 tableBody.innerHTML = '';
-                // 月表示を更新
                 monthDisplay.textContent = `${currentYear}年 ${currentMonth + 1}月`;
                 currentYearSpan.textContent = currentYear;
                 const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -427,14 +423,12 @@
                 console.log('GASに送信する教室長設定 (updatedEventsForGAS):', JSON.stringify(updatedEventsForGAS));
                 try {
                     classroomEvents = updatedEventsForGAS; 
-                    // populateShiftTable(); // 保存前に再描画すると、GAS保存失敗時にローカルの変更が残ってしまう。保存成功後に再描画する方が良い。
-
-                    const result = await fetchFromGAS('saveAdminSettings', { events: classroomEvents, year: currentYear, month: currentMonth + 1 }, 'POST'); // 年月情報も送信
+                    const result = await fetchFromGAS('saveAdminSettings', { events: classroomEvents, year: currentYear, month: currentMonth + 1 }, 'POST'); 
                     alert(result.message || '教室長設定をスプレッドシートに保存しました。');
-                    await loadAdminSettings(); // 保存成功後に最新情報を再読み込み＆再描画
+                    await loadAdminSettings(); 
                 } catch (error) {
                     console.error("applyEventButtonクリック処理でのエラー:", error); 
-                    await loadAdminSettings(); // エラー時もサーバーから再読み込みして整合性を保つ
+                    await loadAdminSettings(); 
                 }
             });
             
@@ -507,23 +501,23 @@
             async function initialize() {
                 console.log('Initializing application...'); 
                 const urlParams = new URLSearchParams(window.location.search);
-                const monthParam = urlParams.get('month'); // yyyy-MM
+                const monthParam = urlParams.get('month'); 
                 if (monthParam) {
                     const parts = monthParam.split('-');
                     if (parts.length === 2) {
                         const year = parseInt(parts[0]);
-                        const month = parseInt(parts[1]) - 1; // 0-indexed
+                        const month = parseInt(parts[1]) - 1; 
                         if (!isNaN(year) && !isNaN(month) && month >= 0 && month <= 11) {
                             currentYear = year;
                             currentMonth = month;
                         }
                     }
                 }
-                // 教室長設定の日付入力の初期値を設定
                 const firstDayOfCurrentMonth = new Date(currentYear, currentMonth, 1);
-                eventDateInput.value = firstDayOfCurrentMonth.toISOString().split('T')[0];
+                // ★★★ 修正点: formatDateKeyForStorage を使用 ★★★
+                eventDateInput.value = formatDateKeyForStorage(firstDayOfCurrentMonth);
                 
-                await loadAdminSettings(); // 教室長設定を読み込み、テーブルを初期描画
+                await loadAdminSettings(); 
                 console.log('Initialization complete.'); 
             }
             initialize();
@@ -531,3 +525,29 @@
     </script>
 </body>
 </html>
+```
+
+**主な修正点:**
+
+* **`formatDateKeyForStorage(dateObj)` 関数の微調整:**
+    * 引数 `dateObj` が確実に `Date` インスタンスであることを確認するチェックを追加しました（主に安全のため）。
+* **`initialize()` 関数内の修正:**
+    * `eventDateInput.value` を設定する際に、`toISOString().split('T')[0]` の代わりに `formatDateKeyForStorage(firstDayOfCurrentMonth)` を使用するように変更しました。
+        ```javascript
+        // 修正前:
+        // eventDateInput.value = firstDayOfCurrentMonth.toISOString().split('T')[0];
+        // 修正後:
+        eventDateInput.value = formatDateKeyForStorage(firstDayOfCurrentMonth);
+        ```
+* **`changeMonth(monthOffset)` 関数内の修正:**
+    * 同様に、`eventDateInput.value` を設定する際に `formatDateKeyForStorage(firstDayOfNewMonth)` を使用するように変更しました。
+        ```javascript
+        // 修正前:
+        // eventDateInput.value = firstDayOfNewMonth.toISOString().split('T')[0];
+        // 修正後:
+        eventDateInput.value = formatDateKeyForStorage(firstDayOfNewMonth);
+        ```
+
+これにより、教室長設定パネルの日付入力欄には、現在選択されている月の1日が、タイムゾーンの影響を受けずに正しく `YYYY-MM-DD` 形式で設定されるようになります。
+
+ご確認のほど、よろしくお願いいたし
