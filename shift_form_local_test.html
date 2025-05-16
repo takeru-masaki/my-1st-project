@@ -176,8 +176,11 @@
                 }
                 // ★★★ ここまで ★★★
 
-                if (GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL_HERE' || !GAS_WEB_APP_URL || GAS_WEB_APP_URL === 'https://script.google.com/macros/s/AKfycbzf00GR1c0TwKdZl4baSLWHjuvOugDGd5c9ZNzLvnpdXoMa3FmQlkLsZGyDXn2ipigr/exec') {
-                    console.warn('GAS_WEB_APP_URL is a placeholder or not set. Simulating GAS response for preview.');
+                    // 修正案 (よりシンプルに)
+                    if (GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL_HERE' || !GAS_WEB_APP_URL) {
+                        console.warn('GAS_WEB_APP_URL is not set. Simulating GAS response for preview.');
+                        // ... (シミュレーション処理) ...
+                    }
                     if (action === 'getAdminSettings') {
                         hideLoading();
                         return Promise.resolve({ status: 'success', data: {} });
