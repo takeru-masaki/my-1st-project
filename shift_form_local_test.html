@@ -586,7 +586,7 @@
                 }
             });
 
-            // --- Load Submitted Shift Button ---
+            // --- Load Submitted Shift Button (with enhanced logging and checks) ---
             loadShiftButton.addEventListener('click', async function() {
                 const instructorName = instructorNameInput.value;
                 const targetYearMonth = targetYearMonthInput.value; 
@@ -601,25 +601,36 @@
                 }
 
                 const [year, month] = targetYearMonth.split('-').map(Number);
+                console.log(`[loadShift] Attempting to load shift for: ${instructorName}, Year: ${year}, Month: ${month}`);
 
                 try {
+                    submissionStatus.textContent = ''; // Clear previous message
                     submissionStatus.classList.add('hidden'); 
-                    currentSubmissionId = null; 
+                    currentSubmissionId = null; // Reset submission ID before loading
+
                     const result = await fetchFromGAS('loadShift', {
                         instructorName: instructorName,
                         year: year,
                         month: month 
                     }, 'GET');
 
-                    if (result.status === 'success' && result.data) {
+                    console.log('[loadShift] GAS Response (loadShift):', JSON.stringify(result, null, 2));
+
+                    if (result && result.status === 'success' && result.data) { 
                         const shiftData = result.data;
-                        console.log('Loaded shift data:', shiftData);
+                        console.log('[loadShift] Loaded shift data from GAS:', shiftData);
                         
-                        instructorNameInput.value = shiftData.instructorName;
+                        instructorNameInput.value = shiftData.instructorName || instructorName; 
                         const subjectRadio = document.querySelector(`input[name="subjectType"][value="${shiftData.subjectType}"]`);
                         if (subjectRadio) subjectRadio.checked = true;
+                        else { 
+                            document.querySelector('input[name="subjectType"][value="共通"]').checked = true; // Common
+                            console.warn(`[loadShift] Subject type "${shiftData.subjectType}" not found in radio buttons. Defaulted to "共通".`); // Common
+                        }
                         remarksInput.value = shiftData.remarks || '';
+                        
                         currentSubmissionId = shiftData.submissionId || null; 
+                        console.log('[loadShift] Set currentSubmissionId to:', currentSubmissionId);
 
                         document.querySelectorAll('#shiftTableBody .time-slot-cell.selected').forEach(cell => {
                             cell.classList.remove('selected');
@@ -632,41 +643,56 @@
                             }
                         });
 
-                        if (shiftData.shifts) {
+                        if (shiftData.shifts && typeof shiftData.shifts === 'object') { 
                             Object.entries(shiftData.shifts).forEach(([dateStr, timeSlots]) => {
-                                timeSlots.forEach(slot => {
-                                    const cell = document.querySelector(`#shiftTableBody .time-slot-cell[data-full-date="${dateStr}"][data-time-slot="${slot.timeSlot}"]`);
-                                    if (cell && !cell.classList.contains('disabled-slot')) {
-                                        cell.classList.add('selected');
-                                        const eventType = cell.dataset.eventType;
-                                        const eventDesc = cell.dataset.eventDescription;
-                                        if (eventType) {
-                                            cell.innerHTML = `<span class="text-xs">${eventDesc ? `${eventType}(${eventDesc})` : eventType}</span>`;
+                                if (Array.isArray(timeSlots)) { 
+                                    timeSlots.forEach(slot => {
+                                        if (slot && slot.timeSlot) { 
+                                            const cell = document.querySelector(`#shiftTableBody .time-slot-cell[data-full-date="${dateStr}"][data-time-slot="${slot.timeSlot}"]`);
+                                            if (cell && !cell.classList.contains('disabled-slot')) {
+                                                cell.classList.add('selected');
+                                                const eventType = cell.dataset.eventType;
+                                                const eventDesc = cell.dataset.eventDescription;
+                                                if (eventType) { 
+                                                    cell.innerHTML = `<span class="text-xs">${eventDesc ? `${eventType}(${eventDesc})` : eventType}</span>`;
+                                                }
+                                            } else if (!cell) {
+                                                console.warn(`[loadShift] Cell not found for date: ${dateStr}, slot: ${slot.timeSlot}`);
+                                            }
+                                        } else {
+                                            console.warn(`[loadShift] Invalid slot data for date ${dateStr}:`, slot);
                                         }
-                                    }
-                                });
+                                    });
+                                } else {
+                                     console.warn(`[loadShift] timeSlots for date ${dateStr} is not an array:`, timeSlots);
+                                }
                             });
+                        } else {
+                            console.warn('[loadShift] shiftData.shifts is missing or not an object:', shiftData.shifts);
                         }
                         submissionStatus.textContent = '提出済みのシフトを読み込みました。修正して再提出できます。'; // Loaded submitted shift. You can modify and resubmit.
                         submissionStatus.classList.remove('hidden');
-                        alert('提出済みのシフトを読み込みました。'); // Loaded submitted shift.
+                        // alert('提出済みのシフトを読み込みました。'); // Loaded submitted shift.
 
-                    } else if (result.status === 'success' && !result.data) {
+                    } else if (result && result.status === 'success' && !result.data) { 
                         submissionStatus.textContent = '指定された年月に提出済みのシフトはありませんでした。新規に作成できます。'; // No submitted shift for the specified year/month. You can create a new one.
                         submissionStatus.classList.remove('hidden');
-                        alert('提出済みのシフトはありませんでした。'); // No submitted shift found.
+                        // alert('提出済みのシフトはありませんでした。'); // No submitted shift found.
                         clearSelectionAndRemarks(false); 
-                        currentSubmissionId = null;
-                    } else {
-                        submissionStatus.textContent = `エラー: ${result.message || 'シフトの読み込みに失敗しました。'}`; // Error: Shift loading failed.
+                        currentSubmissionId = null; 
+                        console.log('[loadShift] No existing shift found. currentSubmissionId set to null.');
+                    } else { 
+                        submissionStatus.textContent = `エラー: ${result ? result.message : 'シフトの読み込みに失敗しました。サーバーからの応答が不正です。'}`; // Error: Shift loading failed. Invalid response from server.
                         submissionStatus.classList.remove('hidden');
-                        alert(result.message || 'シフトの読み込みに失敗しました。'); // Shift loading failed.
+                        console.error('[loadShift] Failed to load shift. GAS Response:', result);
+                        currentSubmissionId = null; 
                     }
                 } catch (error) {
-                    console.error("loadShiftButton でのエラー:", error); // Error in loadShiftButton
+                    console.error("[loadShift] Error during loadShiftButton click:", error);
                     alert('シフトの読み込み中にエラーが発生しました。'); // Error occurred while loading shift.
                     submissionStatus.textContent = 'シフトの読み込み中にエラーが発生しました。'; // Error occurred while loading shift.
                     submissionStatus.classList.remove('hidden');
+                    currentSubmissionId = null; 
                 }
             });
             
