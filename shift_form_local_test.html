@@ -250,6 +250,9 @@
 
             // --- Admin Panel Toggle Functionality ---
             if (toggleAdminPanelButton && adminPanelContent) {
+                adminPanelContent.classList.add('collapsed'); // 初期状態で隠す場合
+                updateAdminPanelToggle(); // 初期状態で隠す場合はこちらも呼ぶ
+
                 toggleAdminPanelButton.addEventListener('click', () => {
                     adminPanelContent.classList.toggle('collapsed');
                     updateAdminPanelToggle();
