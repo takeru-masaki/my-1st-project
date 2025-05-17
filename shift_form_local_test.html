@@ -203,9 +203,11 @@
     </div>
 
     <script>
+        // GAS Web App URL (Replace with your actual URL)
         const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzf00GR1c0TwKdZl4baSLWHjuvOugDGd5c9ZNzLvnpdXoMa3FmQlkLsZGyDXn2ipigr/exec'; 
 
         document.addEventListener('DOMContentLoaded', function () {
+            // Get DOM elements
             const tableBody = document.getElementById('shiftTableBody');
             const monthDisplay = document.getElementById('monthDisplay'); 
             const currentYearSpan = document.getElementById('currentYear');
@@ -215,6 +217,7 @@
             const loadingStatus = document.getElementById('loadingStatus');
             const submissionStatus = document.getElementById('submissionStatus'); 
 
+            // Admin panel elements
             const eventDateInput = document.getElementById('eventDate');
             const eventTimeSlotSelect = document.getElementById('eventTimeSlot');
             const eventTypeSelect = document.getElementById('eventType');
@@ -222,12 +225,15 @@
             const applyEventButton = document.getElementById('applyEventButton');
             const refreshAdminSettingsButton = document.getElementById('refreshAdminSettingsButton');
 
+            // Month navigation elements
             const prevMonthButton = document.getElementById('prevMonthButton');
             const nextMonthButton = document.getElementById('nextMonthButton');
 
+            // Instructor shift elements
             const targetYearMonthInput = document.getElementById('targetYearMonth'); 
             const loadShiftButton = document.getElementById('loadShiftButton');
 
+            // Admin panel toggle elements
             const toggleAdminPanelButton = document.getElementById('toggleAdminPanelButton');
             const adminPanelContent = document.getElementById('adminControlSectionContent');
             const adminPanelToggleText = toggleAdminPanelButton.querySelector('.toggle-text');
@@ -235,13 +241,14 @@
             const adminPanelCurrentMonthDisplay = document.getElementById('adminPanelCurrentMonthDisplay');
             const eventDateTargetMonthDisplay = document.getElementById('eventDateTargetMonthDisplay');
 
-
+            // Initialize state variables
             const today = new Date();
             let currentYear = today.getFullYear(); 
-            let currentMonth = today.getMonth();   
-            let classroomEvents = {}; 
-            let currentSubmissionId = null; 
+            let currentMonth = today.getMonth();   // 0-indexed (January is 0)
+            let classroomEvents = {}; // Holds admin settings for the current month
+            let currentSubmissionId = null; // Holds the ID of the currently loaded shift for updates
 
+            // --- Admin Panel Toggle Functionality ---
             if (toggleAdminPanelButton && adminPanelContent) {
                 toggleAdminPanelButton.addEventListener('click', () => {
                     adminPanelContent.classList.toggle('collapsed');
@@ -249,29 +256,443 @@
                 });
             }
 
-            function updateAdminPanelToggle() { /* ... (変更なし) ... */ }
-            function updateAdminPanelMonthDisplay() { /* ... (変更なし) ... */ }
-            function showLoading(message = "処理中...") { /* ... (変更なし) ... */ }
-            function hideLoading() { /* ... (変更なし) ... */ }
-            function formatDateKeyForStorage(dateObj) { /* ... (変更なし) ... */ }
-            function setInitialTargetYearMonth() { /* ... (変更なし) ... */ }
-            async function changeMonth(monthOffset) { /* ... (変更なし) ... */ }
+            function updateAdminPanelToggle() {
+                if (!adminPanelContent || !adminPanelToggleText || !adminPanelToggleIcon) return;
+                if (adminPanelContent.classList.contains('collapsed')) {
+                    adminPanelToggleText.textContent = 'パネルを開く'; // Open panel
+                    adminPanelToggleIcon.style.transform = 'rotate(180deg)';
+                } else {
+                    adminPanelToggleText.textContent = 'パネルを隠す'; // Hide panel
+                    adminPanelToggleIcon.style.transform = 'rotate(0deg)';
+                }
+            }
+            
+            // --- Update Admin Panel Month Display ---
+            function updateAdminPanelMonthDisplay() {
+                const displayYear = currentYear;
+                const displayMonth = currentMonth + 1; // 1-indexed for display
+                const monthStr = `${displayYear}年 ${displayMonth}月`; // Year Month
+                if (adminPanelCurrentMonthDisplay) adminPanelCurrentMonthDisplay.textContent = monthStr;
+                if (eventDateTargetMonthDisplay) eventDateTargetMonthDisplay.textContent = monthStr;
+                const firstDayOfCurrentCalendarMonth = new Date(currentYear, currentMonth, 1);
+                eventDateInput.value = formatDateKeyForStorage(firstDayOfCurrentCalendarMonth);
+            }
+
+            // --- Loading Indicator ---
+            function showLoading(message = "処理中...") { // Processing...
+                loadingSpinner.classList.remove('hidden');
+                loadingStatus.textContent = message;
+                loadingStatus.classList.remove('hidden');
+            }
+
+            function hideLoading() {
+                loadingSpinner.classList.add('hidden');
+                loadingStatus.classList.add('hidden');
+            }
+            
+            // --- Date Formatting ---
+            function formatDateKeyForStorage(dateObj) { 
+                if (!(dateObj instanceof Date) || isNaN(dateObj)) { 
+                    console.error("formatDateKeyForStorage: input is not a valid Date object", dateObj);
+                    const d = new Date(); 
+                    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+                }
+                return `${dateObj.getFullYear()}-${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-${dateObj.getDate().toString().padStart(2, '0')}`;
+            }
+
+            function formatDateForDisplay(date) { 
+                const d = new Date(date);
+                const monthVal = d.getMonth() + 1; 
+                const dayVal = d.getDate();
+                const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()]; // Sun, Mon, Tue, Wed, Thu, Fri, Sat
+                return `${monthVal}/${dayVal}(${dayOfWeek})`;
+            }
+
+            // --- Set Initial Target Year/Month for Instructor ---
+            function setInitialTargetYearMonth() {
+                targetYearMonthInput.value = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}`;
+            }
+
+            // --- Change Calendar Month ---
+            async function changeMonth(monthOffset) {
+                currentMonth += monthOffset;
+                if (currentMonth < 0) {
+                    currentMonth = 11; // December (0-indexed)
+                    currentYear--;
+                } else if (currentMonth > 11) {
+                    currentMonth = 0; // January (0-indexed)
+                    currentYear++;
+                }
+                monthDisplay.textContent = `${currentYear}年 ${currentMonth + 1}月`; // Year Month
+                updateAdminPanelMonthDisplay(); 
+                setInitialTargetYearMonth();    
+
+                await loadAdminSettings(); 
+                
+                clearSelectionAndRemarks(); 
+                submissionStatus.classList.add('hidden'); 
+                currentSubmissionId = null; 
+            }
+
             prevMonthButton.addEventListener('click', function() { changeMonth(-1); });
             nextMonthButton.addEventListener('click', function() { changeMonth(1); });
-            targetYearMonthInput.addEventListener('change', async function() { /* ... (変更なし) ... */ });
-            async function fetchFromGAS(action, payload = {}, method = 'GET') { /* ... (変更なし) ... */ }
-            async function loadAdminSettings() { /* ... (変更なし) ... */ }
-            function formatDateForDisplay(date) { /* ... (変更なし) ... */ }
-            function populateShiftTable() { /* ... (変更なし) ... */ }
-            applyEventButton.addEventListener('click', async function() { /* ... (変更なし) ... */ });
-            refreshAdminSettingsButton.addEventListener('click', async function() { /* ... (変更なし) ... */ });
-            loadShiftButton.addEventListener('click', async function() { /* ... (変更なし) ... */ });
-            function clearSelectionAndRemarks(clearInstructorInfo = true) { /* ... (変更なし) ... */ }
+
+            // --- Handle Instructor's Target Year/Month Change ---
+            targetYearMonthInput.addEventListener('change', async function() {
+                const [year, month] = this.value.split('-').map(Number);
+                if (year && month && (year !== currentYear || (month -1) !== currentMonth)) {
+                    currentYear = year;
+                    currentMonth = month - 1; 
+                    
+                    monthDisplay.textContent = `${currentYear}年 ${currentMonth + 1}月`; // Year Month
+                    updateAdminPanelMonthDisplay(); 
+                    
+                    await loadAdminSettings(); 
+                    clearSelectionAndRemarks(); 
+                    submissionStatus.classList.add('hidden'); 
+                    currentSubmissionId = null; 
+                }
+            });
+
+            // --- Fetch Data from GAS ---
+            async function fetchFromGAS(action, payload = {}, method = 'GET') {
+                console.log(`fetchFromGAS called. Action: ${action}, Method: ${method}, URL: ${GAS_WEB_APP_URL}`);
+                if (method === 'POST') {
+                    console.log('Payload for POST:', JSON.stringify(payload));
+                }
+
+                // Simulate GAS response if URL is not set (for local testing without GAS deployment)
+                if (GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL_HERE' || !GAS_WEB_APP_URL ) {
+                    console.warn('GAS_WEB_APP_URL is a placeholder or not set. Simulating GAS response for preview.');
+                     if (action === 'getAdminSettings' || action === 'loadShift') { 
+                        hideLoading();
+                        if (action === 'getAdminSettings') return Promise.resolve({ status: 'success', data: {} });
+                        return Promise.resolve({ status: 'success', data: null }); 
+                    }
+                    if (action === 'submitShift' || action === 'saveAdminSettings') {
+                        hideLoading();
+                        return Promise.resolve({ status: 'success', message: 'データはプレビューモードのため送信されませんが、処理はシミュレートされました。' }); // Data not sent in preview mode, but process simulated.
+                    }
+                }
+
+                showLoading(method === 'POST' ? 'データを送信中...' : 'データを読込中...'); // Sending data... / Loading data...
+                try {
+                    let url = GAS_WEB_APP_URL;
+                    const options = {
+                        method: method,
+                        mode: 'cors', 
+                        redirect: 'follow',
+                    };
+
+                    if (method === 'GET') {
+                        const params = new URLSearchParams(payload); 
+                        params.append('action', action);
+                        url += '?' + params.toString();
+                        console.log('GET request to:', url);
+                    } else if (method === 'POST') {
+                        payload.action = action; 
+                        options.body = JSON.stringify(payload); 
+                        options.headers = {
+                            'Content-Type': 'text/plain;charset=UTF-8',
+                        };
+                        console.log('POST request to:', url, 'with options:', options);
+                    }
+                    
+                    const response = await fetch(url, options);
+                    console.log('Fetch response status:', response.status, 'Status text:', response.statusText);
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Fetch response error text:', errorText); 
+                        throw new Error(`GASへのリクエストに失敗しました。Status: ${response.status}, Message: ${errorText}`); // Request to GAS failed.
+                    }
+                    const responseText = await response.text();
+                    console.log('Raw response text from GAS:', responseText);
+                    try {
+                        const result = JSON.parse(responseText);
+                        console.log('Fetch result from GAS (parsed JSON):', result); 
+                        if (result.status === 'error') {
+                            throw new Error(`GASエラー: ${result.message}`); // GAS Error
+                        }
+                        return result;
+                    } catch (e) {
+                        console.error("Failed to parse GAS response as JSON:", e);
+                        throw new Error("GASからの応答がJSON形式ではありません: " + responseText); // Response from GAS is not in JSON format
+                    }
+                } catch (error) {
+                    console.error('GAS通信エラー (fetchFromGAS catch block):', error); // GAS communication error
+                    alert(`エラーが発生しました: ${error.message}`); // An error occurred
+                    throw error; 
+                } finally {
+                    hideLoading();
+                }
+            }
             
-            // ★★★ シフト提出ボタンのイベントリスナー (修正版) ★★★
+            // --- Load Admin Settings ---
+            async function loadAdminSettings() {
+                try {
+                    const result = await fetchFromGAS('getAdminSettings', { 
+                        year: currentYear,        
+                        month: currentMonth + 1   
+                    }, 'GET');
+                    classroomEvents = result.data || {}; 
+                    populateShiftTable(); 
+                    console.log(`教室長設定を読み込みました (${currentYear}年${currentMonth + 1}月):`, classroomEvents); // Admin settings loaded (Year Month)
+                } catch (error) {
+                    console.error("loadAdminSettings でエラー:", error); // Error in loadAdminSettings
+                    classroomEvents = {}; 
+                    populateShiftTable(); 
+                }
+            }
+            
+            // --- Populate Shift Table ---
+            function populateShiftTable() {
+                tableBody.innerHTML = '';
+                // monthDisplay.textContent is set in changeMonth and targetYearMonthInput listener
+                currentYearSpan.textContent = currentYear;
+                const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const currentDateObj = new Date(currentYear, currentMonth, day); 
+                    const dateKeyForLookup = formatDateKeyForStorage(currentDateObj); 
+                    const dateForDisplay = formatDateForDisplay(currentDateObj); 
+
+                    const dayOfWeekIndex = currentDateObj.getDay();
+                    const row = document.createElement('tr');
+                    row.classList.add('border-b', 'border-gray-200');
+                    if (dayOfWeekIndex === 0 || dayOfWeekIndex === 6) row.classList.add('bg-gray-50');
+
+                    const dateCell = document.createElement('td');
+                    dateCell.classList.add('sticky-col', 'border-r', 'border-gray-300', 'px-2', 'py-3', 'text-xs', 'md:text-sm', 'text-gray-800', 'font-medium', 'date-label', 'text-center');
+                    if (dayOfWeekIndex === 0) dateCell.classList.add('sunday');
+                    if (dayOfWeekIndex === 6) dateCell.classList.add('saturday');
+                    dateCell.classList.add((dayOfWeekIndex === 0 || dayOfWeekIndex === 6) ? 'bg-gray-50' : 'bg-white'); 
+                    dateCell.textContent = dateForDisplay;
+                    row.appendChild(dateCell);
+
+                    for (let j = 1; j <= 8; j++) { // 8 time slots
+                        const timeSlotKey = `${j}限`; // Slot X
+                        const cell = document.createElement('td');
+                        cell.classList.add('border-r', 'border-gray-300', 'px-1', 'py-3', 'text-center', 'cursor-pointer', 'time-slot-cell', 'transition-colors', 'duration-150');
+                        if (j === 8) cell.classList.remove('border-r'); 
+
+                        cell.dataset.date = dateForDisplay; 
+                        cell.dataset.fullDate = dateKeyForLookup; 
+                        cell.dataset.timeSlot = timeSlotKey; 
+                        
+                        const settingId = `${dateKeyForLookup}_${timeSlotKey}`; 
+                        const allDaySettingId = `${dateKeyForLookup}_全日`; // All day
+                        
+                        let eventInfo = classroomEvents[settingId];
+                        if (!eventInfo && classroomEvents[allDaySettingId]) {
+                            eventInfo = classroomEvents[allDaySettingId];
+                        }
+
+                        let originalText = "";
+                        if (eventInfo) {
+                            cell.dataset.eventType = eventInfo.type;
+                            cell.dataset.eventDescription = eventInfo.description || ''; 
+                            originalText = eventInfo.description ? `${eventInfo.type}(${eventInfo.description})` : eventInfo.type;
+                            cell.innerHTML = `<span class="text-xs">${originalText}</span>`;
+                            if (eventInfo.type === '休講') { // Closed
+                                cell.classList.add('disabled-slot');
+                                cell.title = `休講: ${eventInfo.description || ''}`; // Closed
+                            } else {
+                                cell.classList.add('event-slot');
+                                cell.title = `${eventInfo.type}: ${eventInfo.description || ''}`;
+                            }
+                        }
+
+                        if (!cell.classList.contains('disabled-slot')) {
+                            cell.addEventListener('click', function() {
+                                this.classList.toggle('selected');
+                                if (this.classList.contains('selected')) {
+                                    if (eventInfo) this.innerHTML = `<span class="text-xs">${originalText}</span>`; 
+                                } else {
+                                    if (eventInfo) this.innerHTML = `<span class="text-xs">${originalText}</span>`; 
+                                    else this.innerHTML = ''; 
+                                }
+                            });
+                        }
+                        row.appendChild(cell);
+                    }
+                    tableBody.appendChild(row);
+                }
+            }
+
+            // --- Admin Panel: Apply Event Button ---
+            applyEventButton.addEventListener('click', async function() {
+                console.log('「設定を反映/保存」ボタンがクリックされました。'); // "Apply/Save Settings" button clicked.
+                const dateVal = eventDateInput.value; 
+                const timeSlotVal = eventTimeSlotSelect.value;
+                const typeVal = eventTypeSelect.value;
+                const descriptionVal = eventDescriptionInput.value;
+
+                if (!dateVal || !timeSlotVal) {
+                    alert('日付と時間枠を選択してください。'); // Please select date and time slot.
+                    return;
+                }
+                
+                const eventDateObj = new Date(dateVal);
+                const targetAdminYear = eventDateObj.getFullYear();
+                const targetAdminMonth = eventDateObj.getMonth() + 1; 
+
+                if (targetAdminYear !== currentYear || targetAdminMonth !== (currentMonth + 1)) {
+                    if (!confirm(`教室長設定の日付 (${targetAdminYear}年${targetAdminMonth}月) が、現在表示中のカレンダー (${currentYear}年${currentMonth+1}月) と異なります。\n${targetAdminYear}年${targetAdminMonth}月の設定として保存しますか？`)) { // Admin setting date (Year Month) differs from current calendar display (Year Month). Save as settings for (Year Month)?
+                        return;
+                    }
+                }
+
+                const dateKeyForEvent = formatDateKeyForStorage(eventDateObj); 
+                let updatedEventsForGAS = JSON.parse(JSON.stringify(classroomEvents)); 
+                const settingIdBase = `${dateKeyForEvent}_`; 
+
+                if (typeVal === 'クリア') { // Clear
+                    if (timeSlotVal === '全日') { // All day
+                        for (let i = 1; i <= 8; i++) delete updatedEventsForGAS[`${settingIdBase}${i}限`]; // Slot X
+                        delete updatedEventsForGAS[`${settingIdBase}全日`]; // All day
+                    } else {
+                        delete updatedEventsForGAS[`${settingIdBase}${timeSlotVal}`];
+                    }
+                } else {
+                    if (timeSlotVal === '全日') { // All day
+                        for (let i = 1; i <= 8; i++) delete updatedEventsForGAS[`${settingIdBase}${i}限`]; // Slot X
+                        updatedEventsForGAS[`${settingIdBase}全日`] = { type: typeVal, description: descriptionVal }; // All day
+                    } else {
+                        delete updatedEventsForGAS[`${settingIdBase}全日`]; // All day
+                        updatedEventsForGAS[`${settingIdBase}${timeSlotVal}`] = { type: typeVal, description: descriptionVal };
+                    }
+                }
+                
+                console.log(`GASに送信する教室長設定 (${targetAdminYear}年${targetAdminMonth}月):`, JSON.stringify(updatedEventsForGAS)); // Admin settings to send to GAS (Year Month)
+                try {
+                    const result = await fetchFromGAS('saveAdminSettings', { 
+                        events: updatedEventsForGAS, 
+                        year: targetAdminYear, 
+                        month: targetAdminMonth 
+                    }, 'POST'); 
+                    alert(result.message || `教室長設定 (${targetAdminYear}年${targetAdminMonth}月) を保存しました。`); // Admin settings (Year Month) saved.
+                    await loadAdminSettings(); 
+                } catch (error) {
+                    console.error("applyEventButtonクリック処理でのエラー:", error); // Error in applyEventButton click process
+                    await loadAdminSettings(); 
+                }
+            });
+            
+            // --- Admin Panel: Refresh Admin Settings Button ---
+            refreshAdminSettingsButton.addEventListener('click', async function() {
+                if (confirm(`${currentYear}年${currentMonth + 1}月の最新の教室長設定をスプレッドシートから読み込みますか？\n未保存のローカル変更は失われます。`)) { // Load latest admin settings for (Year Month) from spreadsheet? Unsaved local changes will be lost.
+                    await loadAdminSettings(); 
+                    alert(`${currentYear}年${currentMonth + 1}月の最新の教室長設定を読み込みました。`); // Loaded latest admin settings for (Year Month).
+                }
+            });
+
+            // --- Load Submitted Shift Button ---
+            loadShiftButton.addEventListener('click', async function() {
+                const instructorName = instructorNameInput.value;
+                const targetYearMonth = targetYearMonthInput.value; 
+
+                if (!instructorName) {
+                    alert("講師氏名を入力してください。"); // Please enter instructor name.
+                    return;
+                }
+                if (!targetYearMonth) {
+                    alert("対象年月を選択してください。"); // Please select target year/month.
+                    return;
+                }
+
+                const [year, month] = targetYearMonth.split('-').map(Number);
+
+                try {
+                    submissionStatus.classList.add('hidden'); 
+                    currentSubmissionId = null; 
+                    const result = await fetchFromGAS('loadShift', {
+                        instructorName: instructorName,
+                        year: year,
+                        month: month 
+                    }, 'GET');
+
+                    if (result.status === 'success' && result.data) {
+                        const shiftData = result.data;
+                        console.log('Loaded shift data:', shiftData);
+                        
+                        instructorNameInput.value = shiftData.instructorName;
+                        const subjectRadio = document.querySelector(`input[name="subjectType"][value="${shiftData.subjectType}"]`);
+                        if (subjectRadio) subjectRadio.checked = true;
+                        remarksInput.value = shiftData.remarks || '';
+                        currentSubmissionId = shiftData.submissionId || null; 
+
+                        document.querySelectorAll('#shiftTableBody .time-slot-cell.selected').forEach(cell => {
+                            cell.classList.remove('selected');
+                            const eventType = cell.dataset.eventType;
+                            const eventDesc = cell.dataset.eventDescription;
+                            if (eventType) {
+                                cell.innerHTML = `<span class="text-xs">${eventDesc ? `${eventType}(${eventDesc})` : eventType}</span>`;
+                            } else {
+                                cell.innerHTML = '';
+                            }
+                        });
+
+                        if (shiftData.shifts) {
+                            Object.entries(shiftData.shifts).forEach(([dateStr, timeSlots]) => {
+                                timeSlots.forEach(slot => {
+                                    const cell = document.querySelector(`#shiftTableBody .time-slot-cell[data-full-date="${dateStr}"][data-time-slot="${slot.timeSlot}"]`);
+                                    if (cell && !cell.classList.contains('disabled-slot')) {
+                                        cell.classList.add('selected');
+                                        const eventType = cell.dataset.eventType;
+                                        const eventDesc = cell.dataset.eventDescription;
+                                        if (eventType) {
+                                            cell.innerHTML = `<span class="text-xs">${eventDesc ? `${eventType}(${eventDesc})` : eventType}</span>`;
+                                        }
+                                    }
+                                });
+                            });
+                        }
+                        submissionStatus.textContent = '提出済みのシフトを読み込みました。修正して再提出できます。'; // Loaded submitted shift. You can modify and resubmit.
+                        submissionStatus.classList.remove('hidden');
+                        alert('提出済みのシフトを読み込みました。'); // Loaded submitted shift.
+
+                    } else if (result.status === 'success' && !result.data) {
+                        submissionStatus.textContent = '指定された年月に提出済みのシフトはありませんでした。新規に作成できます。'; // No submitted shift for the specified year/month. You can create a new one.
+                        submissionStatus.classList.remove('hidden');
+                        alert('提出済みのシフトはありませんでした。'); // No submitted shift found.
+                        clearSelectionAndRemarks(false); 
+                        currentSubmissionId = null;
+                    } else {
+                        submissionStatus.textContent = `エラー: ${result.message || 'シフトの読み込みに失敗しました。'}`; // Error: Shift loading failed.
+                        submissionStatus.classList.remove('hidden');
+                        alert(result.message || 'シフトの読み込みに失敗しました。'); // Shift loading failed.
+                    }
+                } catch (error) {
+                    console.error("loadShiftButton でのエラー:", error); // Error in loadShiftButton
+                    alert('シフトの読み込み中にエラーが発生しました。'); // Error occurred while loading shift.
+                    submissionStatus.textContent = 'シフトの読み込み中にエラーが発生しました。'; // Error occurred while loading shift.
+                    submissionStatus.classList.remove('hidden');
+                }
+            });
+            
+            // --- Clear Selections and Remarks ---
+            function clearSelectionAndRemarks(clearInstructorInfo = true) {
+                document.querySelectorAll('#shiftTableBody .time-slot-cell.selected').forEach(cell => {
+                    cell.classList.remove('selected');
+                    const eventType = cell.dataset.eventType;
+                    const eventDesc = cell.dataset.eventDescription;
+                    if (eventType) {
+                        cell.innerHTML = `<span class="text-xs">${eventDesc ? `${eventType}(${eventDesc})` : eventType}</span>`;
+                    } else {
+                        cell.innerHTML = '';
+                    }
+                });
+                remarksInput.value = '';
+                if (clearInstructorInfo) {
+                    instructorNameInput.value = '';
+                    document.querySelector('input[name="subjectType"][value="共通"]').checked = true; // Common
+                }
+            }
+            
+            // --- Submit Shift Button ---
             const submitShiftButton = document.getElementById('submitShiftButton');
             submitShiftButton.addEventListener('click', async function handleSubmit() {
-                console.log('「この内容で提出する」ボタンがクリックされました。');
+                console.log('「この内容で提出する」ボタンがクリックされました。'); // "Submit with this content" button clicked.
                 const instructorName = instructorNameInput.value;
                 const subjectTypeElement = document.querySelector('input[name="subjectType"]:checked');
                 const subjectType = subjectTypeElement ? subjectTypeElement.value : "";
@@ -279,9 +700,9 @@
                 const selectedCells = document.querySelectorAll('#shiftTableBody .time-slot-cell.selected');
                 const targetYearMonth = targetYearMonthInput.value; 
 
-                if (!instructorName) { alert("講師氏名を入力してください。"); return; }
-                if (!subjectType) { alert("担当区分（文理）を選択してください。"); return; }
-                if (!targetYearMonth) { alert("対象年月を選択してください。"); return; } 
+                if (!instructorName) { alert("講師氏名を入力してください。"); return; } // Please enter instructor name.
+                if (!subjectType) { alert("担当区分（文理）を選択してください。"); return; } // Please select subject type (Arts/Science).
+                if (!targetYearMonth) { alert("対象年月を選択してください。"); return; } // Please select target year/month.
 
                 const [year, month] = targetYearMonth.split('-').map(Number); 
 
@@ -291,7 +712,7 @@
                     
                     const fullDateKey = cell.dataset.fullDate; 
                     const timeSlotKey = cell.dataset.timeSlot; 
-                    let slotType = '通常'; 
+                    let slotType = '通常'; // Normal
                     let slotDescription = cell.dataset.eventDescription || '';
 
                     if (cell.classList.contains('event-slot') && cell.dataset.eventType) {
@@ -308,7 +729,7 @@
                     });
                 });
                 
-                console.log('提出データ (shiftsData):', JSON.stringify(shiftsData));
+                console.log('提出データ (shiftsData):', JSON.stringify(shiftsData)); // Submission data
 
                 const dataToSubmit = {
                     submissionId: currentSubmissionId, 
@@ -319,44 +740,64 @@
                     remarks: remarks,
                     shifts: shiftsData, 
                 };
-                console.log('最終提出データ (dataToSubmit):', JSON.stringify(dataToSubmit));
-                submissionStatus.textContent = ''; // 前のメッセージをクリア
-                submissionStatus.classList.add('hidden'); // メッセージを一旦隠す
+                console.log('最終提出データ (dataToSubmit):', JSON.stringify(dataToSubmit)); // Final submission data
+                submissionStatus.textContent = ''; 
+                submissionStatus.classList.add('hidden'); 
 
                 try {
                     const result = await fetchFromGAS('submitShift', dataToSubmit, 'POST');
                     
-                    // ★★★ デバッグ用ログ ★★★
-                    console.log('GASからのレスポンス (submitShift):', result); 
+                    console.log('GASからのレスポンス (submitShift):', result); // Response from GAS
 
-                    if (result && result.message) { // message プロパティが存在する場合
+                    if (result && result.message) { 
                         submissionStatus.textContent = result.message;
-                        // alert(result.message); // 必要に応じてアラートも表示
-                    } else if (result && result.status === 'error' && result.message) { // GAS側でエラーとして message が設定されている場合
-                        submissionStatus.textContent = `エラー: ${result.message}`;
-                    } else if (result) { // messageはないが、result自体は存在する場合 (GASのレスポンス形式が予期しない場合など)
-                        submissionStatus.textContent = '処理は完了しましたが、サーバーからのメッセージ形式が正しくありません。';
-                         console.warn('GASからのレスポンスにmessageプロパティがありませんでした:', result);
-                    } else { // result自体がnullやundefinedの場合 (fetchFromGASがエラーをthrowせず、nullなどを返した場合 - 通常は考えにくい)
-                        submissionStatus.textContent = 'サーバーから予期しない応答がありました。管理者に連絡してください。';
-                        console.error('サーバーからの応答が不正です (resultがnullまたはundefined)。');
+                    } else if (result && result.status === 'error' && result.message) { 
+                        submissionStatus.textContent = `エラー: ${result.message}`; // Error:
+                    } else if (result) { 
+                        submissionStatus.textContent = '処理は完了しましたが、サーバーからのメッセージ形式が正しくありません。'; // Process completed, but server message format is incorrect.
+                         console.warn('GASからのレスポンスにmessageプロパティがありませんでした:', result); // message property was missing in response from GAS
+                    } else { 
+                        submissionStatus.textContent = 'サーバーから予期しない応答がありました。管理者に連絡してください。'; // Unexpected response from server. Please contact administrator.
+                        console.error('サーバーからの応答が不正です (resultがnullまたはundefined)。'); // Invalid response from server (result is null or undefined).
                     }
-                    submissionStatus.classList.remove('hidden'); // メッセージ表示エリアを表示
+                    submissionStatus.classList.remove('hidden'); 
                     
                     if (result && result.status === 'success') {
-                        // 成功したらフォームを初期化
                         clearSelectionAndRemarks(true); 
                         currentSubmissionId = null; 
                     }
-                } catch (error) { // fetchFromGAS自体がエラーをスローした場合や、上記の処理中の予期せぬエラー
-                    console.error("handleSubmit 内でキャッチされたエラー:", error); 
-                    submissionStatus.textContent = `エラーが発生しました: ${error.message || 'シフトの提出処理中に問題が発生しました。'}`;
+                } catch (error) { 
+                    console.error("handleSubmit 内でキャッチされたエラー:", error); // Error caught in handleSubmit
+                    submissionStatus.textContent = `エラーが発生しました: ${error.message || 'シフトの提出処理中に問題が発生しました。'}`; // An error occurred: / Problem occurred during shift submission process.
                     submissionStatus.classList.remove('hidden');
                 }
             });
-            // ★★★ 修正ここまで ★★★
 
-            async function initialize() { /* ... (変更なし) ... */ }
+            // --- Initialize Application ---
+            async function initialize() {
+                console.log('Initializing application...'); 
+                const urlParams = new URLSearchParams(window.location.search);
+                const monthParam = urlParams.get('month'); 
+                if (monthParam) {
+                    const parts = monthParam.split('-');
+                    if (parts.length === 2) {
+                        const year = parseInt(parts[0]);
+                        const monthVal = parseInt(parts[1]) - 1; 
+                        if (!isNaN(year) && !isNaN(monthVal) && monthVal >= 0 && monthVal <= 11) {
+                            currentYear = year;
+                            currentMonth = monthVal;
+                        }
+                    }
+                }
+                
+                monthDisplay.textContent = `${currentYear}年 ${currentMonth + 1}月`; // Year Month
+                updateAdminPanelMonthDisplay(); 
+                setInitialTargetYearMonth();    
+                
+                await loadAdminSettings(); 
+                updateAdminPanelToggle(); 
+                console.log('Initialization complete.'); 
+            }
             initialize();
         });
     </script>
