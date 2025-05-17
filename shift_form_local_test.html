@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
     <title>シフト提出フォーム (GAS連携テスト)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -10,27 +10,38 @@
         .time-slot { min-width: 45px; font-size: 0.8rem; }
         .date-label { min-width: 90px; font-size: 0.85rem; writing-mode: horizontal-tb; }
 
-        /* テーブルヘッダー行のスティッキー設定 */
-        .sticky-header {
+        /* テーブルヘッダー行のコンテナ(thead)のスティッキー設定 */
+        .sticky-header-container { /* thead に適用 */
             position: -webkit-sticky; /* Safari対応 */
             position: sticky;
-            top: 0; /* 画面上部に固定 */
-            z-index: 20; /* 日付列のセルより手前に表示 */
-            /* background-color はHTML内のTailwindクラス(例: bg-gray-100)で指定 */
+            top: 0;
+            z-index: 20; /* tbodyのセルより手前 */
+            /* background-colorはHTMLのTailwindクラス(bg-gray-100)で指定 */
         }
 
-        /* 日付列のスティッキー設定 */
-        .sticky-col {
+        /* ヘッダー行内のすべてのセル (th) */
+        .sticky-header-container th {
             position: -webkit-sticky; /* Safari対応 */
             position: sticky;
-            left: 0; /* 画面左側に固定 */
-            z-index: 10; /* 通常のセルより手前、ヘッダー行より奥に表示 */
-            /* background-color はHTML内のTailwindクラスで指定 */
+            top: 0; /* ヘッダーセルも個別にtop:0で固定 */
+            z-index: 25; /* theadのz-indexより少し高く、日付列のtdより確実に上 */
+            /* background-colorはHTMLのTailwindクラス(bg-gray-100)で指定されることを期待 */
         }
 
-        /* 左上の角のセル (日付ヘッダー) のスティッキー設定 */
-        thead.sticky-header > tr > th.sticky-col {
-            z-index: 30 !important; /* 最も手前に表示 */
+        /* 日付列のヘッダーセル (左上) - z-indexを最上位に */
+        .sticky-header-container > tr > th.sticky-col {
+            left: 0; /* 左にも固定 */
+            z-index: 30; /* 他のどのヘッダーセルよりも手前 */
+             /* background-colorはHTMLのTailwindクラス(bg-gray-100)で指定 */
+        }
+
+        /* 日付列のボディセル (td) */
+        tbody td.sticky-col {
+            position: -webkit-sticky; /* Safari対応 */
+            position: sticky;
+            left: 0;
+            z-index: 10; /* 通常のセルより手前、ヘッダーより奥 */
+            /* background-colorはHTMLのTailwindクラスで指定 */
         }
 
         .selected { background-color: #3b82f6 !important; color: white !important; }
@@ -136,14 +147,15 @@
                     <thead class="sticky-header-container bg-gray-100">
                         <tr class="border-b border-gray-300">
                             <th class="sticky-col border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 date-label bg-gray-100">日付</th>
-                            <th class="border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">1限</th>
-                            <th class="border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">2限</th>
-                            <th class="border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">3限</th>
-                            <th class="border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">4限</th>
-                            <th class="border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">5限</th>
-                            <th class="border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">6限</th>
-                            <th class="border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">7限</th>
-                            <th class="border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">8限</th>
+                            {/* 時間枠のthにもbg-gray-100を追加 */}
+                            <th class="bg-gray-100 border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">1限</th>
+                            <th class="bg-gray-100 border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">2限</th>
+                            <th class="bg-gray-100 border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">3限</th>
+                            <th class="bg-gray-100 border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">4限</th>
+                            <th class="bg-gray-100 border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">5限</th>
+                            <th class="bg-gray-100 border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">6限</th>
+                            <th class="bg-gray-100 border-r border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">7限</th>
+                            <th class="bg-gray-100 border-gray-300 px-2 py-3 text-xs md:text-sm font-semibold text-gray-700 time-slot">8限</th>
                         </tr>
                     </thead>
                     <tbody id="shiftTableBody" class="bg-white">
@@ -352,12 +364,10 @@
                     if (dayOfWeekIndex === 0 || dayOfWeekIndex === 6) row.classList.add('bg-gray-50');
 
                     const dateCell = document.createElement('td');
-                    // 日付セルに sticky-col クラスを適用
                     dateCell.classList.add('sticky-col', 'border-r', 'border-gray-300', 'px-2', 'py-3', 'text-xs', 'md:text-sm', 'text-gray-800', 'font-medium', 'date-label', 'text-center');
                     if (dayOfWeekIndex === 0) dateCell.classList.add('sunday');
                     if (dayOfWeekIndex === 6) dateCell.classList.add('saturday');
-                    // 背景色はTailwindで制御 (sticky-colのCSSからは削除)
-                    dateCell.classList.add((dayOfWeekIndex === 0 || dayOfWeekIndex === 6) ? 'bg-gray-50' : 'bg-white'); // 週末の背景色を少し変える例
+                    dateCell.classList.add((dayOfWeekIndex === 0 || dayOfWeekIndex === 6) ? 'bg-gray-50' : 'bg-white'); 
                     dateCell.textContent = dateForDisplay;
                     row.appendChild(dateCell);
 
