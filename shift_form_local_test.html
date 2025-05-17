@@ -16,7 +16,6 @@
             position: sticky;
             top: 0;
             z-index: 20; /* tbodyのセルより手前 */
-            /* background-colorはHTMLのTailwindクラス(bg-gray-100)で指定 */
         }
 
         /* ヘッダー行内のすべてのセル (th) */
@@ -24,15 +23,13 @@
             position: -webkit-sticky; /* Safari対応 */
             position: sticky;
             top: 0; /* ヘッダーセルも個別にtop:0で固定 */
-            z-index: 25; /* theadのz-indexより少し高く、日付列のtdより確実に上 */
-            /* background-colorはHTMLのTailwindクラス(bg-gray-100)で指定されることを期待 */
+            z-index: 25; 
         }
 
         /* 日付列のヘッダーセル (左上) - z-indexを最上位に */
         .sticky-header-container > tr > th.sticky-col {
             left: 0; /* 左にも固定 */
-            z-index: 30; /* 他のどのヘッダーセルよりも手前 */
-             /* background-colorはHTMLのTailwindクラス(bg-gray-100)で指定 */
+            z-index: 30; 
         }
 
         /* 日付列のボディセル (td) */
@@ -40,8 +37,7 @@
             position: -webkit-sticky; /* Safari対応 */
             position: sticky;
             left: 0;
-            z-index: 10; /* 通常のセルより手前、ヘッダーより奥 */
-            /* background-colorはHTMLのTailwindクラスで指定 */
+            z-index: 10; 
         }
 
         .selected { background-color: #3b82f6 !important; color: white !important; }
@@ -71,6 +67,20 @@
             100% { transform: rotate(360deg); }
         }
         .hidden { display: none; }
+        /* ★★★ トランジションのためのスタイル ★★★ */
+        .collapsible-content {
+            max-height: 1000px; /* 十分な高さを確保 */
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out, opacity 0.3s ease-in-out;
+            opacity: 1;
+        }
+        .collapsible-content.collapsed {
+            max-height: 0;
+            padding-top: 0 !important; /* Tailwindのpaddingを上書き */
+            padding-bottom: 0 !important; /* Tailwindのpaddingを上書き */
+            opacity: 0;
+            /* border-width: 0; */ /* 枠線も消す場合 */
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
@@ -82,38 +92,48 @@
             <p id="loadingStatus" class="text-sm text-blue-200 hidden"></p>
         </header>
 
-        <section id="adminControlSection" class="p-4 md:p-6 admin-section m-4 rounded-lg">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">教室長用 設定パネル</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <div>
-                    <label for="eventDate" class="block text-sm font-medium text-gray-700">日付:</label>
-                    <input type="date" id="eventDate" name="eventDate" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label for="eventTimeSlot" class="block text-sm font-medium text-gray-700">時間枠:</label>
-                    <select id="eventTimeSlot" name="eventTimeSlot" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">選択してください</option>
-                        <option value="全日">全日</option>
-                        <option value="1限">1限</option><option value="2限">2限</option><option value="3限">3限</option><option value="4限">4限</option>
-                        <option value="5限">5限</option><option value="6限">6限</option><option value="7限">7限</option><option value="8限">8限</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="eventType" class="block text-sm font-medium text-gray-700">種別:</label>
-                    <select id="eventType" name="eventType" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                        <option value="講習">講習</option><option value="休講">休講</option><option value="その他">その他</option><option value="クリア">設定クリア</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="eventDescription" class="block text-sm font-medium text-gray-700">詳細(任意):</label>
-                    <input type="text" id="eventDescription" name="eventDescription" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="例: 数学特別講座">
-                </div>
+        <section id="adminControlSectionWrapper" class="admin-section m-4 rounded-lg">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-xl font-semibold text-gray-700">教室長用 設定パネル</h2>
+                <button id="toggleAdminPanelButton" class="text-sm text-blue-600 hover:text-blue-800 focus:outline-none">
+                    <span class="toggle-text">パネルを隠す</span> 
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block toggle-icon transform transition-transform duration-300" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
             </div>
-            <div class="text-right">
-                <button type="button" id="applyEventButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150">設定を反映/保存</button>
-                <button type="button" id="refreshAdminSettingsButton" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ml-2">最新の設定を読込</button>
+            <div id="adminControlSectionContent" class="p-4 md:p-6 collapsible-content"> {/* ★★★ IDとクラスを追加 ★★★ */}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <label for="eventDate" class="block text-sm font-medium text-gray-700">日付:</label>
+                        <input type="date" id="eventDate" name="eventDate" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="eventTimeSlot" class="block text-sm font-medium text-gray-700">時間枠:</label>
+                        <select id="eventTimeSlot" name="eventTimeSlot" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">選択してください</option>
+                            <option value="全日">全日</option>
+                            <option value="1限">1限</option><option value="2限">2限</option><option value="3限">3限</option><option value="4限">4限</option>
+                            <option value="5限">5限</option><option value="6限">6限</option><option value="7限">7限</option><option value="8限">8限</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="eventType" class="block text-sm font-medium text-gray-700">種別:</label>
+                        <select id="eventType" name="eventType" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="講習">講習</option><option value="休講">休講</option><option value="その他">その他</option><option value="クリア">設定クリア</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="eventDescription" class="block text-sm font-medium text-gray-700">詳細(任意):</label>
+                        <input type="text" id="eventDescription" name="eventDescription" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="例: 数学特別講座">
+                    </div>
+                </div>
+                <div class="text-right">
+                    <button type="button" id="applyEventButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150">設定を反映/保存</button>
+                    <button type="button" id="refreshAdminSettingsButton" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ml-2">最新の設定を読込</button>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">※設定はGoogleスプレッドシートに保存されます。</p>
             </div>
-            <p class="text-xs text-gray-500 mt-2">※設定はGoogleスプレッドシートに保存されます。</p>
         </section>
 
         <div class="month-display-container">
@@ -150,7 +170,7 @@
                          <button type="button" id="loadShiftButton" class="w-full md:w-auto bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200 ease-in-out">提出済みシフトを読み込む</button>
                     </div>
                 </div>
-                 </div>
+            </div>
             <div class="overflow-x-auto pb-4 shadow-md rounded-lg border border-gray-200">
                 <table class="min-w-full border-collapse">
                     <thead class="sticky-header-container bg-gray-100">
@@ -199,7 +219,7 @@
             const remarksInput = document.getElementById('remarks');
             const loadingSpinner = document.getElementById('loadingSpinner');
             const loadingStatus = document.getElementById('loadingStatus');
-            const submissionStatus = document.getElementById('submissionStatus'); // ★ 追加
+            const submissionStatus = document.getElementById('submissionStatus'); 
 
             const eventDateInput = document.getElementById('eventDate');
             const eventTimeSlotSelect = document.getElementById('eventTimeSlot');
@@ -211,16 +231,45 @@
             const prevMonthButton = document.getElementById('prevMonthButton');
             const nextMonthButton = document.getElementById('nextMonthButton');
 
-            // ★★★ 年月選択とシフト読み込みボタンの要素を取得 ★★★
             const targetYearMonthInput = document.getElementById('targetYearMonth');
             const loadShiftButton = document.getElementById('loadShiftButton');
+
+            // ★★★ 教室長パネル開閉のための要素を取得 ★★★
+            const toggleAdminPanelButton = document.getElementById('toggleAdminPanelButton');
+            const adminPanelContent = document.getElementById('adminControlSectionContent');
+            const adminPanelToggleText = toggleAdminPanelButton.querySelector('.toggle-text');
+            const adminPanelToggleIcon = toggleAdminPanelButton.querySelector('.toggle-icon');
             // ★★★ 追加ここまで ★★★
 
             const today = new Date();
             let currentYear = today.getFullYear();
             let currentMonth = today.getMonth(); // 0-indexed
             let classroomEvents = {};
-            let currentSubmissionId = null; // ★ 追加: 読み込んだシフトの提出IDを保持
+            let currentSubmissionId = null; 
+
+            // ★★★ 教室長パネル開閉機能 ★★★
+            if (toggleAdminPanelButton && adminPanelContent) {
+                // 初期状態：パネルは表示（collapsedクラスなし）
+                // adminPanelContent.classList.add('collapsed'); // 初期状態で隠す場合
+                // updateAdminPanelToggle(); // 初期状態で隠す場合はこちらも呼ぶ
+
+                toggleAdminPanelButton.addEventListener('click', () => {
+                    adminPanelContent.classList.toggle('collapsed');
+                    updateAdminPanelToggle();
+                });
+            }
+
+            function updateAdminPanelToggle() {
+                if (adminPanelContent.classList.contains('collapsed')) {
+                    adminPanelToggleText.textContent = 'パネルを開く';
+                    adminPanelToggleIcon.style.transform = 'rotate(180deg)';
+                } else {
+                    adminPanelToggleText.textContent = 'パネルを隠す';
+                    adminPanelToggleIcon.style.transform = 'rotate(0deg)';
+                }
+            }
+            // ★★★ 追加ここまで ★★★
+
 
             function showLoading(message = "処理中...") {
                 loadingSpinner.classList.remove('hidden');
@@ -243,18 +292,16 @@
                     return `${year}-${month}-${dayVal}`;
                 }
                 const year = dateObj.getFullYear();
-                const month = (dateObj.getMonth() + 1).toString().padStart(2, '0'); // 1-indexed for storage key consistency
+                const month = (dateObj.getMonth() + 1).toString().padStart(2, '0'); 
                 const dayVal = dateObj.getDate().toString().padStart(2, '0');
                 return `${year}-${month}-${dayVal}`;
             }
 
-            // ★★★ targetYearMonthInput の初期値を設定する関数 ★★★
             function setInitialTargetYearMonth() {
                 const year = currentYear;
-                const month = (currentMonth + 1).toString().padStart(2, '0'); // 1-indexed for input type="month"
+                const month = (currentMonth + 1).toString().padStart(2, '0'); 
                 targetYearMonthInput.value = `${year}-${month}`;
             }
-            // ★★★ 追加ここまで ★★★
 
             async function changeMonth(monthOffset) {
                 currentMonth += monthOffset;
@@ -265,13 +312,13 @@
                     currentMonth = 0;
                     currentYear++;
                 }
-                await loadAdminSettings(); // 教室長設定を読み込み直す
+                await loadAdminSettings(); 
                 const firstDayOfNewMonth = new Date(currentYear, currentMonth, 1);
-                eventDateInput.value = formatDateKeyForStorage(firstDayOfNewMonth); // 教室長設定の日付も更新
-                setInitialTargetYearMonth(); // ★ 講師用の年月選択も更新
-                clearSelectionAndRemarks(); // ★ 月が変わったら選択状態と備考をクリア
-                submissionStatus.classList.add('hidden'); // ★ 提出状態メッセージもクリア
-                currentSubmissionId = null; // ★ 提出IDもクリア
+                eventDateInput.value = formatDateKeyForStorage(firstDayOfNewMonth); 
+                setInitialTargetYearMonth(); 
+                clearSelectionAndRemarks(); 
+                submissionStatus.classList.add('hidden'); 
+                currentSubmissionId = null; 
             }
 
             prevMonthButton.addEventListener('click', function() {
@@ -282,21 +329,19 @@
                 changeMonth(1);
             });
 
-            // ★★★ 年月選択が変更されたら、カレンダー表示もその年月に合わせる ★★★
             targetYearMonthInput.addEventListener('change', async function() {
                 const [year, month] = this.value.split('-').map(Number);
                 if (year && month) {
                     currentYear = year;
-                    currentMonth = month - 1; // 0-indexed に変換
-                    await loadAdminSettings(); // 教室長設定を読み込み直す
+                    currentMonth = month - 1; 
+                    await loadAdminSettings(); 
                     const firstDayOfNewMonth = new Date(currentYear, currentMonth, 1);
-                    eventDateInput.value = formatDateKeyForStorage(firstDayOfNewMonth); // 教室長設定の日付も更新
-                    clearSelectionAndRemarks(); // ★ 選択状態と備考をクリア
-                    submissionStatus.classList.add('hidden'); // ★ 提出状態メッセージもクリア
-                    currentSubmissionId = null; // ★ 提出IDもクリア
+                    eventDateInput.value = formatDateKeyForStorage(firstDayOfNewMonth); 
+                    clearSelectionAndRemarks(); 
+                    submissionStatus.classList.add('hidden'); 
+                    currentSubmissionId = null; 
                 }
             });
-            // ★★★ 追加ここまで ★★★
 
 
             async function fetchFromGAS(action, payload = {}, method = 'GET') {
@@ -307,7 +352,7 @@
 
                 if (GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL_HERE' || !GAS_WEB_APP_URL ) {
                     console.warn('GAS_WEB_APP_URL is a placeholder or not set. Simulating GAS response for preview.');
-                     if (action === 'getAdminSettings' || action === 'loadShift') { // ★ loadShift を追加
+                     if (action === 'getAdminSettings' || action === 'loadShift') { 
                         hideLoading();
                         return Promise.resolve({ status: 'success', data: {} });
                     }
@@ -329,10 +374,9 @@
                     if (method === 'GET') {
                         const params = new URLSearchParams(payload);
                         params.append('action', action);
-                        // getAdminSettings の時だけ year と month を付与 (loadShiftではpayloadに含める)
                         if (action === 'getAdminSettings') {
-                           params.append('year', currentYear); // populateShiftTableで使うcurrentYear
-                           params.append('month', currentMonth + 1); // populateShiftTableで使うcurrentMonth (1-indexed)
+                           params.append('year', currentYear); 
+                           params.append('month', currentMonth + 1); 
                         }
                         url += '?' + params.toString();
                         console.log('GET request to:', url);
@@ -376,7 +420,6 @@
 
             async function loadAdminSettings() {
                 try {
-                    // getAdminSettings に渡す年月は、カレンダー表示用の currentYear と currentMonth を使う
                     const result = await fetchFromGAS('getAdminSettings', { year: currentYear, month: currentMonth + 1 }, 'GET');
                     classroomEvents = result.data || {};
                     populateShiftTable(); 
@@ -390,7 +433,7 @@
             
             function formatDateForDisplay(date) { 
                 const d = new Date(date);
-                const monthVal = d.getMonth() + 1; // 1-indexed for display
+                const monthVal = d.getMonth() + 1; 
                 const dayVal = d.getDate();
                 const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
                 return `${monthVal}/${dayVal}(${dayOfWeek})`;
@@ -398,13 +441,12 @@
 
             function populateShiftTable() {
                 tableBody.innerHTML = '';
-                // monthDisplay はカレンダー表示用の年月 (currentYear, currentMonth)
                 monthDisplay.textContent = `${currentYear}年 ${currentMonth + 1}月`;
                 currentYearSpan.textContent = currentYear;
                 const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
                 for (let day = 1; day <= daysInMonth; day++) {
-                    const currentDateObj = new Date(currentYear, currentMonth, day); // currentMonth is 0-indexed
+                    const currentDateObj = new Date(currentYear, currentMonth, day); 
                     const dateKeyForLookup = formatDateKeyForStorage(currentDateObj); 
                     const dateForDisplay = formatDateForDisplay(currentDateObj); 
 
@@ -427,8 +469,8 @@
                         cell.classList.add('border-r', 'border-gray-300', 'px-1', 'py-3', 'text-center', 'cursor-pointer', 'time-slot-cell', 'transition-colors', 'duration-150');
                         if (j === 8) cell.classList.remove('border-r'); 
 
-                        cell.dataset.date = dateForDisplay; // 表示用の日付 (M/D(曜))
-                        cell.dataset.fullDate = dateKeyForLookup; // ★ YYYY-MM-DD形式の日付も保持
+                        cell.dataset.date = dateForDisplay; 
+                        cell.dataset.fullDate = dateKeyForLookup; 
                         cell.dataset.timeSlot = timeSlotKey; 
                         
                         const settingId = `${dateKeyForLookup}_${timeSlotKey}`; 
@@ -458,9 +500,9 @@
                             cell.addEventListener('click', function() {
                                 this.classList.toggle('selected');
                                 if (this.classList.contains('selected')) {
-                                    if (eventInfo) this.innerHTML = `<span class="text-xs">${originalText}</span>`; // イベント情報があれば再表示
+                                    if (eventInfo) this.innerHTML = `<span class="text-xs">${originalText}</span>`; 
                                 } else {
-                                    if (eventInfo) this.innerHTML = `<span class="text-xs">${originalText}</span>`; // イベント情報があれば再表示
+                                    if (eventInfo) this.innerHTML = `<span class="text-xs">${originalText}</span>`; 
                                     else this.innerHTML = ''; 
                                 }
                             });
@@ -510,10 +552,9 @@
                 
                 console.log('GASに送信する教室長設定 (updatedEventsForGAS):', JSON.stringify(updatedEventsForGAS));
                 try {
-                    // saveAdminSettings に渡す年月は、教室長設定が対象としている年月 (eventDateInputから取得した日付の年月)
                     const eventDateObj = new Date(dateVal);
                     const payloadYear = eventDateObj.getFullYear();
-                    const payloadMonth = eventDateObj.getMonth() + 1; // 1-indexed
+                    const payloadMonth = eventDateObj.getMonth() + 1; 
 
                     classroomEvents = updatedEventsForGAS; 
                     const result = await fetchFromGAS('saveAdminSettings', { events: classroomEvents, year: payloadYear, month: payloadMonth }, 'POST'); 
@@ -532,10 +573,9 @@
                 }
             });
 
-            // ★★★ 提出済みシフトを読み込む処理 ★★★
             loadShiftButton.addEventListener('click', async function() {
                 const instructorName = instructorNameInput.value;
-                const targetYearMonth = targetYearMonthInput.value; // YYYY-MM
+                const targetYearMonth = targetYearMonthInput.value; 
 
                 if (!instructorName) {
                     alert("講師氏名を入力してください。");
@@ -549,29 +589,26 @@
                 const [year, month] = targetYearMonth.split('-').map(Number);
 
                 try {
-                    submissionStatus.classList.add('hidden'); // 前回のメッセージをクリア
-                    currentSubmissionId = null; // 提出IDをクリア
+                    submissionStatus.classList.add('hidden'); 
+                    currentSubmissionId = null; 
                     const result = await fetchFromGAS('loadShift', {
                         instructorName: instructorName,
                         year: year,
-                        month: month // 1-indexed month
+                        month: month 
                     }, 'GET');
 
                     if (result.status === 'success' && result.data) {
                         const shiftData = result.data;
                         console.log('Loaded shift data:', shiftData);
                         
-                        // フォームに読み込み
                         instructorNameInput.value = shiftData.instructorName;
                         const subjectRadio = document.querySelector(`input[name="subjectType"][value="${shiftData.subjectType}"]`);
                         if (subjectRadio) subjectRadio.checked = true;
                         remarksInput.value = shiftData.remarks || '';
-                        currentSubmissionId = shiftData.submissionId || null; // ★ 提出IDを保持
+                        currentSubmissionId = shiftData.submissionId || null; 
 
-                        // シフト表の選択状態をクリア
                         document.querySelectorAll('#shiftTableBody .time-slot-cell.selected').forEach(cell => {
                             cell.classList.remove('selected');
-                            // イベント表示があるセルは元に戻す
                             const eventType = cell.dataset.eventType;
                             const eventDesc = cell.dataset.eventDescription;
                             if (eventType) {
@@ -581,15 +618,12 @@
                             }
                         });
 
-                        // 読み込んだシフトを選択状態にする
                         if (shiftData.shifts) {
                             Object.entries(shiftData.shifts).forEach(([dateStr, timeSlots]) => {
-                                // dateStr は YYYY-MM-DD 形式であることを期待 (GAS側で整形)
                                 timeSlots.forEach(slot => {
                                     const cell = document.querySelector(`#shiftTableBody .time-slot-cell[data-full-date="${dateStr}"][data-time-slot="${slot.timeSlot}"]`);
                                     if (cell && !cell.classList.contains('disabled-slot')) {
                                         cell.classList.add('selected');
-                                        // イベント表示があるセルでも選択状態がわかるようにする（selectedクラスで背景色が変わるため、文字色はselectedのCSSで対応）
                                         const eventType = cell.dataset.eventType;
                                         const eventDesc = cell.dataset.eventDescription;
                                         if (eventType) {
@@ -607,7 +641,7 @@
                         submissionStatus.textContent = '指定された年月に提出済みのシフトはありませんでした。新規に作成できます。';
                         submissionStatus.classList.remove('hidden');
                         alert('提出済みのシフトはありませんでした。');
-                        clearSelectionAndRemarks(false); // 講師名と担当区分は残す
+                        clearSelectionAndRemarks(false); 
                         currentSubmissionId = null;
                     } else {
                         submissionStatus.textContent = `エラー: ${result.message || 'シフトの読み込みに失敗しました。'}`;
@@ -621,13 +655,10 @@
                     submissionStatus.classList.remove('hidden');
                 }
             });
-            // ★★★ 追加ここまで ★★★
 
-            // ★★★ 選択状態と備考欄をクリアする関数 ★★★
             function clearSelectionAndRemarks(clearInstructorInfo = true) {
                 document.querySelectorAll('#shiftTableBody .time-slot-cell.selected').forEach(cell => {
                     cell.classList.remove('selected');
-                    // イベント表示があるセルは元に戻す
                     const eventType = cell.dataset.eventType;
                     const eventDesc = cell.dataset.eventDescription;
                     if (eventType) {
@@ -642,7 +673,6 @@
                     document.querySelector('input[name="subjectType"][value="共通"]').checked = true;
                 }
             }
-            // ★★★ 追加ここまで ★★★
 
 
             const submitShiftButton = document.getElementById('submitShiftButton');
@@ -653,19 +683,19 @@
                 const subjectType = subjectTypeElement ? subjectTypeElement.value : "";
                 const remarks = remarksInput.value;
                 const selectedCells = document.querySelectorAll('#shiftTableBody .time-slot-cell.selected');
-                const targetYearMonth = targetYearMonthInput.value; // ★ YYYY-MM 形式
+                const targetYearMonth = targetYearMonthInput.value; 
 
                 if (!instructorName) { alert("講師氏名を入力してください。"); return; }
                 if (!subjectType) { alert("担当区分（文理）を選択してください。"); return; }
-                if (!targetYearMonth) { alert("対象年月を選択してください。"); return; } // ★ 追加
+                if (!targetYearMonth) { alert("対象年月を選択してください。"); return; } 
 
-                const [year, month] = targetYearMonth.split('-').map(Number); // ★ 年と月を取得 (月は1-indexed)
+                const [year, month] = targetYearMonth.split('-').map(Number); 
 
                 let shiftsData = {};
                 selectedCells.forEach(cell => {
                     if (cell.classList.contains('disabled-slot')) return; 
                     
-                    const fullDateKey = cell.dataset.fullDate; // ★ YYYY-MM-DD 形式を使用
+                    const fullDateKey = cell.dataset.fullDate; 
                     const timeSlotKey = cell.dataset.timeSlot; 
                     let slotType = '通常'; 
                     let slotDescription = cell.dataset.eventDescription || '';
@@ -687,16 +717,16 @@
                 console.log('提出データ (shiftsData):', JSON.stringify(shiftsData));
 
                 const dataToSubmit = {
-                    submissionId: currentSubmissionId, // ★ 提出IDも送信 (新規ならnull)
+                    submissionId: currentSubmissionId, 
                     year: year, 
-                    month: month, // ★ 1-indexed month
+                    month: month, 
                     instructorName: instructorName,
                     subjectType: subjectType,
                     remarks: remarks,
                     shifts: shiftsData, 
                 };
                 console.log('最終提出データ (dataToSubmit):', JSON.stringify(dataToSubmit));
-                submissionStatus.classList.add('hidden'); // 前回のメッセージをクリア
+                submissionStatus.classList.add('hidden'); 
 
                 try {
                     const result = await fetchFromGAS('submitShift', dataToSubmit, 'POST');
@@ -705,13 +735,8 @@
                     alert(result.message || 'シフトが正常に送信されました。');
                     
                     if (result.status === 'success') {
-                        // 成功したらフォームを初期化するが、講師名と年月は残しても良いかもしれない
-                        clearSelectionAndRemarks(true); // 全部クリアする場合
-                        // clearSelectionAndRemarks(false); // 講師名と担当区分、年月は残す場合
-                        // targetYearMonthInput.value = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}`; // 年月は現在のカレンダー表示に合わせる
-                        currentSubmissionId = null; // 新規提出モードに戻る
-                        // 必要であれば教室長設定も再読み込み (通常は不要)
-                        // await loadAdminSettings(); 
+                        clearSelectionAndRemarks(true); 
+                        currentSubmissionId = null; 
                     }
                 } catch (error) {
                     console.error("handleSubmit でのエラー:", error); 
@@ -728,7 +753,7 @@
                     const parts = monthParam.split('-');
                     if (parts.length === 2) {
                         const year = parseInt(parts[0]);
-                        const monthVal = parseInt(parts[1]) - 1; // 0-indexed
+                        const monthVal = parseInt(parts[1]) - 1; 
                         if (!isNaN(year) && !isNaN(monthVal) && monthVal >= 0 && monthVal <= 11) {
                             currentYear = year;
                             currentMonth = monthVal;
@@ -736,10 +761,11 @@
                     }
                 }
                 const firstDayOfCurrentMonth = new Date(currentYear, currentMonth, 1);
-                eventDateInput.value = formatDateKeyForStorage(firstDayOfCurrentMonth); // 教室長用
-                setInitialTargetYearMonth(); // ★ 講師用年月入力の初期化
+                eventDateInput.value = formatDateKeyForStorage(firstDayOfCurrentMonth); 
+                setInitialTargetYearMonth(); 
                 
                 await loadAdminSettings(); 
+                updateAdminPanelToggle(); // ★ 初期表示のために呼び出し
                 console.log('Initialization complete.'); 
             }
             initialize();
